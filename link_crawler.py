@@ -5,7 +5,7 @@ import requests, os
 
 
 class Crawler:
-	def __init__(self, host, threading_limit):
+	def __init__(self, host, threading_limit, log_limit):
 		self.host = host
 		self.threading_limit = threading_limit
 		self.all_urls = set()
@@ -14,6 +14,7 @@ class Crawler:
 		self.ext_urls = set()
 		self.path = self.host.split('//')[1]
 		self.counter = 0
+		self.log_limit = log_limit
 
 	def request(self, url):
 		try:
@@ -38,9 +39,15 @@ class Crawler:
 				self.all_urls = set(file.read().split('\n'))
 				file.close()
 
+				file = open(self.path + '/done_urls.txt', 'r', encoding="utf-8")
+				self.done_urls = set(file.read().split('\n'))
+				file.close()
+
 				file = open(self.path + '/ext_urls.txt', 'r', encoding="utf-8")
 				self.ext_urls = set(file.read().split('\n'))
 				file.close()
+				
+				print('Internal URLs:', len(self.all_urls), 'Crawled:', len(self.done_urls), 'External URLs:', len(self.ext_urls))
 			else:
 				self.all_urls.add(self.host)
 		else:
@@ -62,6 +69,7 @@ class Crawler:
 
 	def temp_saver(self):
 		self.file_writer('all_urls', self.all_urls)
+		self.file_writer('done_urls', self.done_urls)
 		if len(self.ext_urls) > 0:
 			self.file_writer('ext_urls', self.ext_urls)
 
@@ -84,7 +92,7 @@ class Crawler:
 				self.extractor(url)
 
 	def corrector(self, link):
-		link = link.split('&')[0].strip()
+		link = link.split('?')[0].strip()
 		link = link.split('#')[0].strip()
 		if len(link) > 0:
 			if link[0] == '/':
@@ -103,7 +111,7 @@ class Crawler:
 			if len(anchors) > 0:
 				for anchor in anchors:
 					link = anchor.get('href')
-					if link and 'http' in link:
+					if link: # have to be fixed
 						link = self.corrector(link)
 						if host[2:-2] in link:
 							if link not in self.all_urls:
@@ -123,7 +131,7 @@ class Crawler:
 			self.pend_urls = self.all_urls - self.done_urls
 			self.status(len(self.pend_urls))
 
-			if len(self.all_urls) - self.counter >= 2000:
+			if len(self.all_urls) - self.counter >= self.log_limit:
 				self.temp_saver()
 				self.counter = len(self.all_urls)
 
@@ -140,7 +148,8 @@ class Crawler:
 
 host = input('Enter URL: ')
 threading_limit = int(input('Enter Threading Limit: '))
+log_limit = int(input('Log Saving Limit?\n--> '))
 
-crawler = Crawler(host, threading_limit)
+crawler = Crawler(host, threading_limit, log_limit)
 crawler.crawl()
 
